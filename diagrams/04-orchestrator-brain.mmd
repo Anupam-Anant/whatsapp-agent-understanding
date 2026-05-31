@@ -1,0 +1,22 @@
+flowchart TB
+    Entry1[handlePlatformMessage<br/>Ask/Inform/Answered]
+    Entry2[processMessage<br/>IncomingMessage from WhatsApp]
+    Entry3[conversationCompleted<br/>CompletionEvent from JMS]
+
+    Entry1 & Entry2 & Entry3 --> Lock[SessionLockManager.lock<br/>per-phone, fair]
+    Lock --> Vthread[Virtual thread]
+    Vthread --> LoadCtx[Load SessionContext from Infinispan]
+    LoadCtx --> Router{state<br/>router}
+
+    Router -->|InitState| HInit[handleInit<br/>detect lang, greet → Idle]
+    Router -->|IdleState| HIdle[handleIdle<br/>LLM + conversation tools]
+    Router -->|CollectingFieldState| HColl[handleCollecting<br/>SubmitAnswer / PickOne / ViewMore]
+    Router -->|ExitState| HExit[handleExit<br/>yes/no, cleanup]
+
+    HInit --> Flush
+    HIdle --> Flush
+    HColl --> Flush
+    HExit --> Flush
+
+    Flush[flushContext<br/>save session if dirty<br/>save staged messages]
+    Flush --> Unlock[release lock]

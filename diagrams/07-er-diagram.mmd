@@ -1,0 +1,30 @@
+erDiagram
+    WabaSession ||--o{ SessionMessage : has
+    WabaSession {
+        string sessionId
+        string accountId PK
+        string invokerId
+        string phoneNumber
+        map sessionData
+        OrchestrationDataEntry orchestrationDataEntry
+    }
+    OrchestrationDataEntry {
+        string stateJson
+    }
+    SessionMessage {
+        string id PK
+        string sessionId
+        string tenantId
+        long timestamp
+        enum role
+        string content
+        list toolCalls
+        string toolCallId
+        string toolName
+        long sequenceNumber
+    }
+    ConversationField {
+        string name
+        enum type
+        map attributes
+    }

@@ -1,0 +1,97 @@
+flowchart TB
+    subgraph API["api/  (JAX-RS layer)"]
+        WAR[WhatsAppResource<br/>POST /incoming/messages<br/>POST /dlr/messages]
+        CR[ConversationResource]
+        FR[FormApiResource]
+        WSR[WorkspaceResource]
+        HR[HealthResource]
+    end
+
+    subgraph ORCH["orchestrator/  (brain)"]
+        SO[SessionOrchestrator]
+        SC[SessionContext]
+        SF[SessionFactory]
+        FC[FieldCollector]
+        TE[ToolExecutor]
+        MF[MessageFormatter]
+        IMP[InformMessageProcessor]
+        DIM[DefaultInboxMessageListener]
+        STATE[state/<br/>Init / Idle / Collecting / Exit]
+        TOOLS[tools/<br/>SubmitAnswer / PickOneField / ExitSession / ConversationRemoteTool]
+    end
+
+    subgraph CHAT["chat/ + util/  (LLM)"]
+        CLMP[ChatLanguageModelProvider]
+        CSV[ChatService]
+        IB[InstructionBuilder]
+        INS[Instructions]
+        LLM[LlmService]
+    end
+
+    subgraph SVC["service/  (integrations)"]
+        ATH[AccessTokenHolder]
+        HAC[HeloAIWabaClient<br/>MessageSender]
+        SCS[SessionCleanupService]
+        TCS[TranscriptCleanupService]
+        SLM[SessionLockManager]
+        SMF[SessionMessageFactory]
+        CCL[ConversationCompletionListener<br/>ActiveMQ]
+        PSV[PlatformService]
+    end
+
+    subgraph PERS["persistence/  (Infinispan)"]
+        SR[SessionRepository]
+        SMR[SessionMessageRepository]
+        WS[WabaSession BO]
+        SM[SessionMessage BO]
+        II[InfinispanInitializer]
+    end
+
+    subgraph CAT["catalog/  (Krista catalog)"]
+        CA[ConversationArea<br/>Get Transcript]
+        MA[MediumArea<br/>Session / Phone / Verify APIs]
+    end
+
+    subgraph MON["monitoring/"]
+        VTM[VirtualThreadPinningMonitor]
+    end
+
+    WAR --> SO
+    DIM --> SO
+    SO --> SC
+    SO --> SF
+    SO --> TE
+    SO --> FC
+    SO --> MF
+    SO --> IMP
+    SO --> STATE
+    SO --> TOOLS
+    SO --> SLM
+
+    TE --> CLMP
+    LLM --> CLMP
+    TOOLS --> CLMP
+    IB --> INS
+
+    SF --> PSV
+    TOOLS --> PSV
+    SO --> PSV
+    SO --> HAC
+    HAC --> ATH
+    SCS --> SR
+    TCS --> SMR
+    CCL --> SO
+
+    SR --> WS
+    SMR --> SM
+    SR --> II
+    SMR --> II
+
+    CA --> SMR
+    MA --> SR
+
+    KristaWhatsAppExtension --> ALL[everything]
+    style ORCH fill:#fff3cd
+    style CHAT fill:#cfe2ff
+    style PERS fill:#d4f4dd
+    style SVC fill:#f8d7da

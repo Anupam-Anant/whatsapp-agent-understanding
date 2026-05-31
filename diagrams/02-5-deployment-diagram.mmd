@@ -1,0 +1,19 @@
+flowchart TB
+    subgraph Docker["Docker container (baseImage 3.5.7-sp1)"]
+        subgraph JVM["JVM Java 21 (virtual threads on)"]
+            Inv[Invoker = krista-whatsapp]
+            JAXRS[Jersey JAX-RS]
+            HK2[HK2 DI]
+            JFR[JFR pinning monitor]
+        end
+        Logs[log4j2.xml<br/>console + file]
+    end
+    LB[Load balancer / Ingress]
+    Net[(Internal network)]
+
+    LB --> JAXRS
+    JVM --> Net
+    Net --> Infinispan
+    Net --> ActiveMQ
+    JVM --> OpenAI[OpenAI<br/>egress]
+    JVM --> HeloAI[HeloAI<br/>egress]

@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> InitState: first ever msg
+    InitState --> IdleState: greet sent / lang detected
+
+    IdleState --> CollectingFieldState: Ask message with fields\nor LLM launches conversation
+    CollectingFieldState --> IdleState: submit_answer succeeds
+    CollectingFieldState --> CollectingFieldState: pickOne pagination
+
+    IdleState --> ExitState: user types EXIT keyword\nor LLM calls exit_session
+    CollectingFieldState --> ExitState: same
+    ExitState --> IdleState: user says NO (cancel)
+    ExitState --> [*]: user says YES → cleanup + transcript

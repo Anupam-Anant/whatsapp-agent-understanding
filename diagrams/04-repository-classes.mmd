@@ -1,0 +1,17 @@
+classDiagram
+    class SessionRepository {
+        <<interface>>
+        +findByPhoneNumber(phone)
+        +findBySessionId(sessionId)
+        +findByAccountId(accountId)
+        +findAll()
+        +save(session)
+        +delete(session)
+    }
+    class SessionRepositoryImpl {
+        -RemoteCache infinispan
+        -Caffeine L1 cacheByPhone
+        -Caffeine L1 cacheBySessionId
+        -Caffeine L1 cacheByAccountId
+    }
+    SessionRepository <|.. SessionRepositoryImpl

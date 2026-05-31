@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant Sched as SessionCleanupService (every 60s)
+    participant SR as SessionRepository
+    participant Lock as SessionLockManager
+    participant MS as MessageSender
+    participant PS as PlatformService
+    participant Cat as ConversationArea
+    Sched->>SR: findAll()
+    SR-->>Sched: list of WabaSessions
+    loop each session
+        Sched->>Sched: idle > 300s ?
+        Sched->>Lock: getLock(phone).lock()
+        Sched->>Sched: re-check idle (double-check)
+        Sched->>MS: sendTextMessage(timeout text)
+        Sched->>Cat: eventHandler.handleEvent("Get Transcript")
+        Sched->>SR: delete(session)
+        Sched->>PS: cleanupUserSession()
+    end

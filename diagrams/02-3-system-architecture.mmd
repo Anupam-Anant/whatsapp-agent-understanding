@@ -1,0 +1,26 @@
+flowchart LR
+    User([WhatsApp user])
+    WhatsApp[WhatsApp<br/>Business API]
+    HeloAI[HeloAI WABA<br/>Gateway<br/>https://wabaapp.helo.ai]
+
+    subgraph Krista["Krista Appliance (Docker, Java 21)"]
+        Ext[krista-whatsapp<br/>Extension<br/>JAX-RS]
+        Studio[Krista Studio<br/>Platform SDK]
+    end
+
+    Infinispan[(Infinispan<br/>HotRod, 11222<br/>SCRAM-SHA-512)]
+    ActiveMQ[(ActiveMQ<br/>chatbot-message-state-<br/>notifications)]
+    OpenAI[(OpenAI API<br/>gpt-4o-mini)]
+
+    User -- WhatsApp --> WhatsApp
+    WhatsApp -- webhook --> HeloAI
+    HeloAI -- "POST /incoming/messages<br/>(JSON)" --> Ext
+    Ext -- "POST /messages/single<br/>Bearer token" --> HeloAI
+    HeloAI -- "delivers msg" --> WhatsApp
+    WhatsApp -- delivers --> User
+
+    Ext -- "HotRod (TCP)<br/>Protostream" --> Infinispan
+    Ext -- "JMS Topic<br/>subscribe" --> ActiveMQ
+    Studio -- "publish events" --> ActiveMQ
+    Ext -- "In-process SDK<br/>(ThreadLocal auth)" --> Studio
+    Ext -- "HTTPS Chat Completions<br/>Bearer token" --> OpenAI

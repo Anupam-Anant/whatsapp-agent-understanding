@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant SO as SessionOrchestrator
+    participant TE as ToolExecutor
+    participant LLM as OpenAI
+    participant Tool as Tool
+
+    SO->>TE: executeChatModel(systemPrompt, tools)
+    TE->>TE: messages = [System] + last 20 msgs
+    loop until response or maxIter=10
+        TE->>LLM: ChatRequest(messages, toolSpecs)
+        LLM-->>TE: AiMessage (text or toolCalls)
+        alt AiMessage has toolCalls
+            TE->>TE: messages.add(AiMessage)
+            opt merge duplicate submit_answer
+                TE->>TE: merge args
+            end
+            loop each toolCall
+                TE->>Tool: tool.execute(ctx, args)
+                Tool-->>TE: Continue / StopLoop / TriggerExitFlow
+                TE->>TE: messages.add(ToolResultMessage)
+            end
+            alt StopLoop or TriggerExitFlow
+                Note over TE: break outer loop
+            end
+        else AiMessage is text
+            TE->>TE: finalResponse = text
+            Note over TE: break loop
+        end
+    end
+    TE->>SO: ExecutionResult(text, exitFlowTriggered)

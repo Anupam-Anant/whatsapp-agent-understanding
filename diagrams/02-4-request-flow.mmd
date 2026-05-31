@@ -1,0 +1,15 @@
+flowchart LR
+    A[User msg<br/>WhatsApp] --> B[HeloAI webhook]
+    B --> C[WhatsAppResource]
+    C --> D[SessionOrchestrator<br/>virtual thread + lock]
+    D --> E{state?}
+    E -->|Init| F[Detect language<br/>send greeting → Idle]
+    E -->|Idle| G[LLM + Conversation tools<br/>→ launch workflow → Collecting]
+    E -->|Collecting| H[LLM + SubmitAnswer/PickOne<br/>→ submit → Idle]
+    E -->|Exit| I[Yes/No confirmation<br/>→ cleanup]
+    G --> J[Krista Studio<br/>ConversationExecution]
+    H --> J
+    J --> K[ActiveMQ completion event]
+    K --> L[ConversationCompletionListener<br/>→ orchestrator]
+    L --> M[Send reply via HeloAI]
+    M --> A

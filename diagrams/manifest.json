@@ -1,0 +1,142 @@
+[
+  {
+    "index": 0,
+    "name": "02-1-module-landscape",
+    "caption": "Module landscape (the whole monorepo)",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-1-module-landscape.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-1-module-landscape.svg",
+    "start": 6495,
+    "end": 6983,
+    "original_block": "```mermaid\nflowchart LR\n    subgraph Repo[\"krista-global-catalog (monorepo)\"]\n        A[Automation SDK<br/>Java 17+]\n        B[heloai-whatsapp/<br/>krista-whatsapp \u2605<br/>Java 21]\n        B1[heloai-waba-extension<br/>OLD - replaced]\n        B2[heloai-waba-persistence<br/>OLD - replaced]\n        C[krista-extension-skills<br/>docs/guides]\n        D[Other integrations<br/>SharePoint, Outlook, FTP...]\n    end\n    style B fill:#d4f4dd\n    style B1 fill:#f4d4d4\n    style B2 fill:#f4d4d4\n```"
+  },
+  {
+    "index": 1,
+    "name": "02-2-component-diagram",
+    "caption": "Component diagram inside krista-whatsapp",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-2-component-diagram.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-2-component-diagram.svg",
+    "start": 7132,
+    "end": 9479,
+    "original_block": "```mermaid\nflowchart TB\n    subgraph API[\"api/  (JAX-RS layer)\"]\n        WAR[WhatsAppResource<br/>POST /incoming/messages<br/>POST /dlr/messages]\n        CR[ConversationResource]\n        FR[FormApiResource]\n        WSR[WorkspaceResource]\n        HR[HealthResource]\n    end\n\n    subgraph ORCH[\"orchestrator/  (brain)\"]\n        SO[SessionOrchestrator]\n        SC[SessionContext]\n        SF[SessionFactory]\n        FC[FieldCollector]\n        TE[ToolExecutor]\n        MF[MessageFormatter]\n        IMP[InformMessageProcessor]\n        DIM[DefaultInboxMessageListener]\n        STATE[state/<br/>Init / Idle / Collecting / Exit]\n        TOOLS[tools/<br/>SubmitAnswer / PickOneField / ExitSession / ConversationRemoteTool]\n    end\n\n    subgraph CHAT[\"chat/ + util/  (LLM)\"]\n        CLMP[ChatLanguageModelProvider]\n        CSV[ChatService]\n        IB[InstructionBuilder]\n        INS[Instructions]\n        LLM[LlmService]\n    end\n\n    subgraph SVC[\"service/  (integrations)\"]\n        ATH[AccessTokenHolder]\n        HAC[HeloAIWabaClient<br/>MessageSender]\n        SCS[SessionCleanupService]\n        TCS[TranscriptCleanupService]\n        SLM[SessionLockManager]\n        SMF[SessionMessageFactory]\n        CCL[ConversationCompletionListener<br/>ActiveMQ]\n        PSV[PlatformService]\n    end\n\n    subgraph PERS[\"persistence/  (Infinispan)\"]\n        SR[SessionRepository]\n        SMR[SessionMessageRepository]\n        WS[WabaSession BO]\n        SM[SessionMessage BO]\n        II[InfinispanInitializer]\n    end\n\n    subgraph CAT[\"catalog/  (Krista catalog)\"]\n        CA[ConversationArea<br/>Get Transcript]\n        MA[MediumArea<br/>Session / Phone / Verify APIs]\n    end\n\n    subgraph MON[\"monitoring/\"]\n        VTM[VirtualThreadPinningMonitor]\n    end\n\n    WAR --> SO\n    DIM --> SO\n    SO --> SC\n    SO --> SF\n    SO --> TE\n    SO --> FC\n    SO --> MF\n    SO --> IMP\n    SO --> STATE\n    SO --> TOOLS\n    SO --> SLM\n\n    TE --> CLMP\n    LLM --> CLMP\n    TOOLS --> CLMP\n    IB --> INS\n\n    SF --> PSV\n    TOOLS --> PSV\n    SO --> PSV\n    SO --> HAC\n    HAC --> ATH\n    SCS --> SR\n    TCS --> SMR\n    CCL --> SO\n\n    SR --> WS\n    SMR --> SM\n    SR --> II\n    SMR --> II\n\n    CA --> SMR\n    MA --> SR\n\n    KristaWhatsAppExtension --> ALL[everything]\n    style ORCH fill:#fff3cd\n    style CHAT fill:#cfe2ff\n    style PERS fill:#d4f4dd\n    style SVC fill:#f8d7da\n```"
+  },
+  {
+    "index": 2,
+    "name": "02-3-system-architecture",
+    "caption": "System architecture (deployed view)",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-3-system-architecture.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-3-system-architecture.svg",
+    "start": 9525,
+    "end": 10573,
+    "original_block": "```mermaid\nflowchart LR\n    User([WhatsApp user])\n    WhatsApp[WhatsApp<br/>Business API]\n    HeloAI[HeloAI WABA<br/>Gateway<br/>https://wabaapp.helo.ai]\n\n    subgraph Krista[\"Krista Appliance (Docker, Java 21)\"]\n        Ext[krista-whatsapp<br/>Extension<br/>JAX-RS]\n        Studio[Krista Studio<br/>Platform SDK]\n    end\n\n    Infinispan[(Infinispan<br/>HotRod, 11222<br/>SCRAM-SHA-512)]\n    ActiveMQ[(ActiveMQ<br/>chatbot-message-state-<br/>notifications)]\n    OpenAI[(OpenAI API<br/>gpt-4o-mini)]\n\n    User -- WhatsApp --> WhatsApp\n    WhatsApp -- webhook --> HeloAI\n    HeloAI -- \"POST /incoming/messages<br/>(JSON)\" --> Ext\n    Ext -- \"POST /messages/single<br/>Bearer token\" --> HeloAI\n    HeloAI -- \"delivers msg\" --> WhatsApp\n    WhatsApp -- delivers --> User\n\n    Ext -- \"HotRod (TCP)<br/>Protostream\" --> Infinispan\n    Ext -- \"JMS Topic<br/>subscribe\" --> ActiveMQ\n    Studio -- \"publish events\" --> ActiveMQ\n    Ext -- \"In-process SDK<br/>(ThreadLocal auth)\" --> Studio\n    Ext -- \"HTTPS Chat Completions<br/>Bearer token\" --> OpenAI\n```"
+  },
+  {
+    "index": 3,
+    "name": "02-4-request-flow",
+    "caption": "Request flow (very high-level)",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-4-request-flow.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-4-request-flow.svg",
+    "start": 10614,
+    "end": 11279,
+    "original_block": "```mermaid\nflowchart LR\n    A[User msg<br/>WhatsApp] --> B[HeloAI webhook]\n    B --> C[WhatsAppResource]\n    C --> D[SessionOrchestrator<br/>virtual thread + lock]\n    D --> E{state?}\n    E -->|Init| F[Detect language<br/>send greeting \u2192 Idle]\n    E -->|Idle| G[LLM + Conversation tools<br/>\u2192 launch workflow \u2192 Collecting]\n    E -->|Collecting| H[LLM + SubmitAnswer/PickOne<br/>\u2192 submit \u2192 Idle]\n    E -->|Exit| I[Yes/No confirmation<br/>\u2192 cleanup]\n    G --> J[Krista Studio<br/>ConversationExecution]\n    H --> J\n    J --> K[ActiveMQ completion event]\n    K --> L[ConversationCompletionListener<br/>\u2192 orchestrator]\n    L --> M[Send reply via HeloAI]\n    M --> A\n```"
+  },
+  {
+    "index": 4,
+    "name": "02-5-deployment-diagram",
+    "caption": "Deployment diagram",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-5-deployment-diagram.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/02-5-deployment-diagram.svg",
+    "start": 11308,
+    "end": 11869,
+    "original_block": "```mermaid\nflowchart TB\n    subgraph Docker[\"Docker container (baseImage 3.5.7-sp1)\"]\n        subgraph JVM[\"JVM Java 21 (virtual threads on)\"]\n            Inv[Invoker = krista-whatsapp]\n            JAXRS[Jersey JAX-RS]\n            HK2[HK2 DI]\n            JFR[JFR pinning monitor]\n        end\n        Logs[log4j2.xml<br/>console + file]\n    end\n    LB[Load balancer / Ingress]\n    Net[(Internal network)]\n\n    LB --> JAXRS\n    JVM --> Net\n    Net --> Infinispan\n    Net --> ActiveMQ\n    JVM --> OpenAI[OpenAI<br/>egress]\n    JVM --> HeloAI[HeloAI<br/>egress]\n```"
+  },
+  {
+    "index": 5,
+    "name": "03-1-end-to-end-sequence",
+    "caption": "End-to-end sequence: 'HI' through 'Pay Bill'",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/03-1-end-to-end-sequence.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/03-1-end-to-end-sequence.svg",
+    "start": 12156,
+    "end": 14814,
+    "original_block": "```mermaid\nsequenceDiagram\n    actor U as User\n    participant WA as WhatsApp Business\n    participant HA as HeloAI WABA\n    participant WR as WhatsAppResource\n    participant SO as SessionOrchestrator\n    participant SF as SessionFactory\n    participant SR as SessionRepository\n    participant LLM as LlmService /<br/>ToolExecutor\n    participant TR as ConversationToolRegistry\n    participant PS as PlatformService\n    participant ST as Krista Studio\n    participant MQ as ActiveMQ\n    participant CCL as ConversationCompletionListener\n    participant MS as HeloAIWabaClient\n\n    U->>WA: \"HI\"\n    WA->>HA: deliver\n    HA->>WR: POST /incoming/messages\n    WR-->>HA: 200 OK (async hand-off)\n    WR->>SO: processMessage(IncomingMessage)\n\n    rect rgb(255,250,205)\n    Note over SO: virtual thread<br/>+ SessionLockManager.lock(phone)\n    SO->>SF: loadOrCreate(phone)\n    SF->>PS: getOrCreateSession(phone, role)\n    PS->>ST: create account + channel session\n    ST-->>PS: sessionId + accountId\n    SF->>SR: save(WabaSession state=InitState)\n    end\n\n    SO->>LLM: analyzeInitMessage(\"HI\")\n    LLM-->>SO: InitMessageAnalysis(lang=en, isGreeting=true)\n    SO->>MS: sendTextMessage(\"Hello! Welcome to Adani Electricity...\")\n    MS->>HA: POST /messages/single (Bearer token)\n    HA->>WA: deliver\n    WA->>U: \"Hello! ...\"\n\n    Note over SO: state \u2192 IdleState, save context\n\n    U->>WA: \"Pay bill\"\n    WA->>HA: deliver\n    HA->>WR: webhook\n    WR->>SO: processMessage\n    SO->>TR: conversationTools()\n    TR-->>SO: [Pay_Bill, Check_Status, ...]\n    SO->>LLM: ToolExecutor.executeChatModel(systemPrompt, tools)\n\n    LLM->>LLM: gpt-4o-mini decides \u2192 call Pay_Bill(args)\n    LLM->>PS: ToolContext.launchConversation(\"Pay_Bill\", args)\n    PS->>ST: conversation.execute(account)\n    ST-->>PS: executionId\n    ST->>SO: Ask message via inbox (fields: consumer_number)\n\n    SO->>SO: state \u2192 CollectingFieldState(parentMsgId, fields)\n    SO->>MS: send \"Please share your consumer number\"\n    MS->>HA: ...\n    HA->>WA: ...\n    WA->>U: bot reply\n\n    U->>WA: \"1234567890\"\n    WA-->>SO: same path\n    SO->>LLM: ToolExecutor (SubmitAnswerTool active)\n    LLM->>LLM: call submit_answer({consumer_number:\"1234567890\"})\n    LLM->>PS: ToolContext.submitAnswer(parentMsgId, answers)\n    PS->>ST: MessageProcessor.submitAnswer(...)\n\n    Note over ST: workflow runs, fetches bill\n\n    ST->>MQ: publish completion event (status=inactive)\n    MQ->>CCL: onMessage\n    CCL->>SO: conversationCompleted(event)\n    SO->>SO: state \u2192 IdleState\n    ST-->>SO: Inform message (\"Your bill: \u20b9X due Y\")\n    SO->>MS: forward text\n    MS->>HA: ...\n    HA->>WA: ...\n    WA->>U: \"Your bill: \u20b9X due Y\"\n```"
+  },
+  {
+    "index": 6,
+    "name": "03-3-side-channel-flows",
+    "caption": "Side-channel flows: session cleanup",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/03-3-side-channel-flows.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/03-3-side-channel-flows.svg",
+    "start": 18265,
+    "end": 18969,
+    "original_block": "```mermaid\nsequenceDiagram\n    participant Sched as SessionCleanupService (every 60s)\n    participant SR as SessionRepository\n    participant Lock as SessionLockManager\n    participant MS as MessageSender\n    participant PS as PlatformService\n    participant Cat as ConversationArea\n    Sched->>SR: findAll()\n    SR-->>Sched: list of WabaSessions\n    loop each session\n        Sched->>Sched: idle > 300s ?\n        Sched->>Lock: getLock(phone).lock()\n        Sched->>Sched: re-check idle (double-check)\n        Sched->>MS: sendTextMessage(timeout text)\n        Sched->>Cat: eventHandler.handleEvent(\"Get Transcript\")\n        Sched->>SR: delete(session)\n        Sched->>PS: cleanupUserSession()\n    end\n```"
+  },
+  {
+    "index": 7,
+    "name": "04-orchestrator-brain",
+    "caption": "SessionOrchestrator \u2014 the brain",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/04-orchestrator-brain.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/04-orchestrator-brain.svg",
+    "start": 20422,
+    "end": 21357,
+    "original_block": "```mermaid\nflowchart TB\n    Entry1[handlePlatformMessage<br/>Ask/Inform/Answered]\n    Entry2[processMessage<br/>IncomingMessage from WhatsApp]\n    Entry3[conversationCompleted<br/>CompletionEvent from JMS]\n\n    Entry1 & Entry2 & Entry3 --> Lock[SessionLockManager.lock<br/>per-phone, fair]\n    Lock --> Vthread[Virtual thread]\n    Vthread --> LoadCtx[Load SessionContext from Infinispan]\n    LoadCtx --> Router{state<br/>router}\n\n    Router -->|InitState| HInit[handleInit<br/>detect lang, greet \u2192 Idle]\n    Router -->|IdleState| HIdle[handleIdle<br/>LLM + conversation tools]\n    Router -->|CollectingFieldState| HColl[handleCollecting<br/>SubmitAnswer / PickOne / ViewMore]\n    Router -->|ExitState| HExit[handleExit<br/>yes/no, cleanup]\n\n    HInit --> Flush\n    HIdle --> Flush\n    HColl --> Flush\n    HExit --> Flush\n\n    Flush[flushContext<br/>save session if dirty<br/>save staged messages]\n    Flush --> Unlock[release lock]\n```"
+  },
+  {
+    "index": 8,
+    "name": "04-state-machine",
+    "caption": "Orchestration state machine",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/04-state-machine.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/04-state-machine.svg",
+    "start": 23321,
+    "end": 23910,
+    "original_block": "```mermaid\nstateDiagram-v2\n    [*] --> InitState: first ever msg\n    InitState --> IdleState: greet sent / lang detected\n\n    IdleState --> CollectingFieldState: Ask message with fields\\nor LLM launches conversation\n    CollectingFieldState --> IdleState: submit_answer succeeds\n    CollectingFieldState --> CollectingFieldState: pickOne pagination\n\n    IdleState --> ExitState: user types EXIT keyword\\nor LLM calls exit_session\n    CollectingFieldState --> ExitState: same\n    ExitState --> IdleState: user says NO (cancel)\n    ExitState --> [*]: user says YES \u2192 cleanup + transcript\n```"
+  },
+  {
+    "index": 9,
+    "name": "04-repository-classes",
+    "caption": "Repository class diagram",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/04-repository-classes.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/04-repository-classes.svg",
+    "start": 29924,
+    "end": 30413,
+    "original_block": "```mermaid\nclassDiagram\n    class SessionRepository {\n        <<interface>>\n        +findByPhoneNumber(phone)\n        +findBySessionId(sessionId)\n        +findByAccountId(accountId)\n        +findAll()\n        +save(session)\n        +delete(session)\n    }\n    class SessionRepositoryImpl {\n        -RemoteCache infinispan\n        -Caffeine L1 cacheByPhone\n        -Caffeine L1 cacheBySessionId\n        -Caffeine L1 cacheByAccountId\n    }\n    SessionRepository <|.. SessionRepositoryImpl\n```"
+  },
+  {
+    "index": 10,
+    "name": "06-llm-architecture",
+    "caption": "LLM architecture overview",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/06-llm-architecture.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/06-llm-architecture.svg",
+    "start": 37969,
+    "end": 38499,
+    "original_block": "```mermaid\nflowchart LR\n    subgraph App[\"krista-whatsapp\"]\n        SO[SessionOrchestrator]\n        IB[InstructionBuilder]\n        TE[ToolExecutor]\n        LLM[LlmService]\n        TR[ConversationToolRegistry]\n        Tools[SubmitAnswer / PickOne /<br/>ExitSession / ConversationRemoteTool]\n        CLMP[ChatLanguageModelProvider<br/>OpenAiChatModel]\n    end\n    OA[(OpenAI gpt-4o-mini)]\n    SO --> TE\n    TE --> CLMP\n    TE --> Tools\n    TR --> Tools\n    SO --> IB\n    IB --> TE\n    SO --> LLM\n    LLM --> CLMP\n    CLMP --> OA\n```"
+  },
+  {
+    "index": 11,
+    "name": "06-tool-loop-sequence",
+    "caption": "Tool-execution loop sequence",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/06-tool-loop-sequence.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/06-tool-loop-sequence.svg",
+    "start": 42105,
+    "end": 43200,
+    "original_block": "```mermaid\nsequenceDiagram\n    participant SO as SessionOrchestrator\n    participant TE as ToolExecutor\n    participant LLM as OpenAI\n    participant Tool as Tool\n\n    SO->>TE: executeChatModel(systemPrompt, tools)\n    TE->>TE: messages = [System] + last 20 msgs\n    loop until response or maxIter=10\n        TE->>LLM: ChatRequest(messages, toolSpecs)\n        LLM-->>TE: AiMessage (text or toolCalls)\n        alt AiMessage has toolCalls\n            TE->>TE: messages.add(AiMessage)\n            opt merge duplicate submit_answer\n                TE->>TE: merge args\n            end\n            loop each toolCall\n                TE->>Tool: tool.execute(ctx, args)\n                Tool-->>TE: Continue / StopLoop / TriggerExitFlow\n                TE->>TE: messages.add(ToolResultMessage)\n            end\n            alt StopLoop or TriggerExitFlow\n                Note over TE: break outer loop\n            end\n        else AiMessage is text\n            TE->>TE: finalResponse = text\n            Note over TE: break loop\n        end\n    end\n    TE->>SO: ExecutionResult(text, exitFlowTriggered)\n```"
+  },
+  {
+    "index": 12,
+    "name": "07-er-diagram",
+    "caption": "Entity-relationship (conceptual)",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/07-er-diagram.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/07-er-diagram.svg",
+    "start": 46011,
+    "end": 46735,
+    "original_block": "```mermaid\nerDiagram\n    WabaSession ||--o{ SessionMessage : has\n    WabaSession {\n        string sessionId PK_idx\n        string accountId PK\n        string invokerId idx\n        string phoneNumber idx\n        map sessionData\n        OrchestrationDataEntry orchestrationDataEntry\n    }\n    OrchestrationDataEntry {\n        string stateJson\n    }\n    SessionMessage {\n        string id PK_idx\n        string sessionId idx\n        string tenantId idx\n        long timestamp sortable\n        enum role\n        string content\n        list toolCalls\n        string toolCallId\n        string toolName\n        long sequenceNumber\n    }\n    ConversationField {\n        string name\n        enum type\n        map attributes\n    }\n```"
+  },
+  {
+    "index": 13,
+    "name": "09-latency-pie",
+    "caption": "Latency breakdown per chat turn",
+    "mmd_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/09-latency-pie.mmd",
+    "svg_path": "/Users/anupamanant/IdeaProjects2/krista-global-catalog/heloai-whatsapp/krista-whatsapp/docs/diagrams/09-latency-pie.svg",
+    "start": 50143,
+    "end": 50339,
+    "original_block": "```mermaid\npie title End-to-end latency for a chat turn\n    \"OpenAI LLM call\" : 600\n    \"Infinispan read/write\" : 30\n    \"HeloAI send-message\" : 200\n    \"Local CPU (state machine + JSON)\" : 20\n```"
+  }
+]

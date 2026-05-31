@@ -1,0 +1,20 @@
+flowchart LR
+    subgraph App["krista-whatsapp"]
+        SO[SessionOrchestrator]
+        IB[InstructionBuilder]
+        TE[ToolExecutor]
+        LLM[LlmService]
+        TR[ConversationToolRegistry]
+        Tools[SubmitAnswer / PickOne /<br/>ExitSession / ConversationRemoteTool]
+        CLMP[ChatLanguageModelProvider<br/>OpenAiChatModel]
+    end
+    OA[(OpenAI gpt-4o-mini)]
+    SO --> TE
+    TE --> CLMP
+    TE --> Tools
+    TR --> Tools
+    SO --> IB
+    IB --> TE
+    SO --> LLM
+    LLM --> CLMP
+    CLMP --> OA

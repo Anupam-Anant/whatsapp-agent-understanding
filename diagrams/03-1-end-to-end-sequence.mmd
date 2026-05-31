@@ -1,0 +1,78 @@
+sequenceDiagram
+    actor U as User
+    participant WA as WhatsApp Business
+    participant HA as HeloAI WABA
+    participant WR as WhatsAppResource
+    participant SO as SessionOrchestrator
+    participant SF as SessionFactory
+    participant SR as SessionRepository
+    participant LLM as LlmService /<br/>ToolExecutor
+    participant TR as ConversationToolRegistry
+    participant PS as PlatformService
+    participant ST as Krista Studio
+    participant MQ as ActiveMQ
+    participant CCL as ConversationCompletionListener
+    participant MS as HeloAIWabaClient
+
+    U->>WA: "HI"
+    WA->>HA: deliver
+    HA->>WR: POST /incoming/messages
+    WR-->>HA: 200 OK (async hand-off)
+    WR->>SO: processMessage(IncomingMessage)
+
+    rect rgb(255,250,205)
+    Note over SO: virtual thread<br/>+ SessionLockManager.lock(phone)
+    SO->>SF: loadOrCreate(phone)
+    SF->>PS: getOrCreateSession(phone, role)
+    PS->>ST: create account + channel session
+    ST-->>PS: sessionId + accountId
+    SF->>SR: save(WabaSession state=InitState)
+    end
+
+    SO->>LLM: analyzeInitMessage("HI")
+    LLM-->>SO: InitMessageAnalysis(lang=en, isGreeting=true)
+    SO->>MS: sendTextMessage("Hello! Welcome to Adani Electricity...")
+    MS->>HA: POST /messages/single (Bearer token)
+    HA->>WA: deliver
+    WA->>U: "Hello! ..."
+
+    Note over SO: state → IdleState, save context
+
+    U->>WA: "Pay bill"
+    WA->>HA: deliver
+    HA->>WR: webhook
+    WR->>SO: processMessage
+    SO->>TR: conversationTools()
+    TR-->>SO: [Pay_Bill, Check_Status, ...]
+    SO->>LLM: ToolExecutor.executeChatModel(systemPrompt, tools)
+
+    LLM->>LLM: gpt-4o-mini decides → call Pay_Bill(args)
+    LLM->>PS: ToolContext.launchConversation("Pay_Bill", args)
+    PS->>ST: conversation.execute(account)
+    ST-->>PS: executionId
+    ST->>SO: Ask message via inbox (fields: consumer_number)
+
+    SO->>SO: state → CollectingFieldState(parentMsgId, fields)
+    SO->>MS: send "Please share your consumer number"
+    MS->>HA: ...
+    HA->>WA: ...
+    WA->>U: bot reply
+
+    U->>WA: "1234567890"
+    WA-->>SO: same path
+    SO->>LLM: ToolExecutor (SubmitAnswerTool active)
+    LLM->>LLM: call submit_answer({consumer_number:"1234567890"})
+    LLM->>PS: ToolContext.submitAnswer(parentMsgId, answers)
+    PS->>ST: MessageProcessor.submitAnswer(...)
+
+    Note over ST: workflow runs, fetches bill
+
+    ST->>MQ: publish completion event (status=inactive)
+    MQ->>CCL: onMessage
+    CCL->>SO: conversationCompleted(event)
+    SO->>SO: state → IdleState
+    ST-->>SO: Inform message ("Your bill: ₹X due Y")
+    SO->>MS: forward text
+    MS->>HA: ...
+    HA->>WA: ...
+    WA->>U: "Your bill: ₹X due Y"
